@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create S3 for LifeCycle
+Parameters:
+  BucketNameLog:
+    Type: String
+    Default: xxxxxxxx
+    Description: A name for the log bucket.
+  BucketNameContents:
+    Type: String
+    Default: xxxxxxxx
+    Description: A name for the contents bucket.
+
+Resources:
+  S3Log:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref BucketNameLog
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: !Join ['-', [!Ref 'BucketNameLog', 'log-LifeCycle']]
+            Status: Enabled
+            Prefix: log/
+            # 365日経過したら削除
+            ExpirationInDays: 365
+            # １８０日経過したらS3 clacierに移行する
+            Transitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 180
+  S3Contents:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketNameContents
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256  
+      LifecycleConfiguration:
+        Rules:
+          - Id: !Join ['-', [!Ref 'BucketNameContents', 'Contents-LifeCycle']]
+            Status: Enabled
+            # バージョニングされているデータは180日経過したらS3 clacierに移行する
+            NoncurrentVersionTransition:
+                StorageClass: GLACIER
+                TransitionInDays: 180
+            # バージョニングされているデータは365日経過したら削除する
+            NoncurrentVersionExpirationInDays: 365
